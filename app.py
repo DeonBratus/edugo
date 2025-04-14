@@ -34,8 +34,6 @@ class CalcModel(PrintModel):
             return self.left - self.right
         elif self.op == "*":
             return self.left * self.right
-        elif self.op == "/":
-            return self.left / self.right
         else:
             return None
 
