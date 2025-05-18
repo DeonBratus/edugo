@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	_ "edugo/docs"
+	"github.com/rs/cors"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -140,10 +141,21 @@ func printValue(op PrintOperation, items *[]ResultItem, varsStorage map[string]i
 }
 
 func main() {
-	http.HandleFunc("/", handlePost)
-	http.Handle("/swagger/", httpSwagger.WrapHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", handlePost)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
+	
+	// Настройка CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"}, // Разрешить все домены (в продакшене укажите конкретные)
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
 
-	fmt.Println("Server is running on http://127.0.0.1:8000")
-	fmt.Println("Swagger UI:     http://127.0.0.1:8000/swagger/index.html")
-	log.Fatal(http.ListenAndServe(":8000", nil))
+	handler := c.Handler(mux)
+
+	fmt.Println("Server is running on http://0.0.0.0:8000")
+	fmt.Println("Swagger UI:     http://0.0.0.0:8000/swagger/index.html")
+	log.Fatal(http.ListenAndServe(":8000", handler))
 }
