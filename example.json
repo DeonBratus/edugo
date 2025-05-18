@@ -1,4 +1,0 @@
-[
-    { "type": "calc", "op": "+", "var": "x", "left": 1, "right": 2 },
-    { "type": "print", "var": "x" }
-]

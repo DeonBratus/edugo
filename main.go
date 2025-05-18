@@ -3,138 +3,130 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
 )
 
-type LeftAndRight interface{}
-
-type InputData struct {
-	Type  string       `json:"type"`
-	Op    string       `json:"op,omitempty"`
-	Var   string       `json:"var"`
-	Left  LeftAndRight `json:"left,omitempty"`
-	Right LeftAndRight `json:"right,omitempty"`
+type OperationUnit struct {
+	Type string `json:"type"`
 }
 
-func parseInputData(jsonData []byte) (InputData, error) {
-	var rawData map[string]json.RawMessage
-	if err := json.Unmarshal(jsonData, &rawData); err != nil {
-		return InputData{}, err
-	}
-
-	var inputData InputData
-	if err := json.Unmarshal(jsonData, &inputData); err != nil {
-		return InputData{}, err
-	}
-
-	if rawleft, ok := rawData["left"]; ok {
-		inputData.Left = parseLeftAndRight(rawleft)
-	}
-	if rawright, ok := rawData["right"]; ok {
-		inputData.Right = parseLeftAndRight(rawright)
-	}
-	return inputData, nil
+type MathOperation struct {
+	OperationUnit
+	Op    string      `json:"op"`
+	Var   string      `json:"var"`
+	Left  interface{} `json:"left"`
+	Rignt interface{} `json:"right"`
 }
 
-func parseLeftAndRight(raw json.RawMessage) LeftAndRight {
-	var num int
-	if err := json.Unmarshal(raw, &num); err != nil {
-		return num
-	}
-
-	var str string
-	if err := json.Unmarshal(raw, &str); err != nil {
-		return str
-	}
-
-	return nil
-}
-
-type PrintData struct {
+type PrintOperation struct {
+	OperationUnit
 	Var string `json:"var"`
 }
 
-type CalcData struct {
-	Op    string       `json:"op,omitempty"`
-	Var   string       `json:"var"`
-	Left  LeftAndRight `json:"left,omitempty"`
-	Right LeftAndRight `json:"right,omitempty"`
+type OperationList struct {
+	Operations []json.RawMessage `json:"operations"`
 }
 
-// func (clcdata *CalcData) calucate() int {
-// 	var res int
-// 	switch clcdata.Op {
-// 	case "+":
-// 		res = clcdata.Left + clcdata.Right
-// 		return res
-// 	case "-":
-// 		res = clcdata.Left - clcdata.Right
-// 		return res
-// 	case "*":
-// 		res = clcdata.Left * clcdata.Right
-// 		return res
-// 	default:
-// 		return 0
-// 	}
-// }
+type ResultItem struct {
+	Var   string      `json:"var"`
+	Value interface{} `json:"value"`
+}
 
-func typeSelect(indata InputData) interface{} {
-	switch indata.Type {
-	case "calc":
-		return CalcData{
-			Var:   indata.Var,
-			Op:    indata.Op,
-			Left:  indata.Left,
-			Right: indata.Right,
-		}
+func calculate(op MathOperation, varsStorage map[string]interface{}) {
+	left := getValue(op.Left, varsStorage)
+	right := getValue(op.Rignt, varsStorage)
 
-	case "print":
-		return PrintData{
-			Var: indata.Var,
-		}
-	default:
-		return nil
+	switch op.Op {
+	case "+":
+		varsStorage[op.Var] = left.(float64) + right.(float64)
+	case "*":
+		varsStorage[op.Var] = left.(float64) * right.(float64)
+	case "-":
+		varsStorage[op.Var] = left.(float64) - right.(float64)
 	}
+}
+
+func getValue(val interface{}, varsStorage map[string]interface{}) interface{} {
+	switch v := val.(type) {
+	case string:
+		if value, exists := varsStorage[v]; exists {
+			return value
+		}
+		return 0.0
+	case float64:
+		return v
+	case int32:
+		return v
+	default:
+		return 0.0
+	}
+}
+
+func printValue(op PrintOperation, items *[]ResultItem, varsStorage map[string]interface{}) {
+	value, exists := varsStorage[op.Var]
+	if !exists {
+		value = 0.0
+	}
+	*items = append(*items, ResultItem{
+		Var:   op.Var,
+		Value: value, // Теперь value передаётся как interface{}, что допустимо
+	})
 }
 
 func handlePost(writer http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(writer, "Method is not supported", http.StatusMethodNotAllowed)
+		http.Error(writer, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		http.Error(writer, "Reading request error", http.StatusBadRequest)
+	var opers []json.RawMessage
+	if err := json.NewDecoder(req.Body).Decode(&opers); err != nil {
+		http.Error(writer, "Bad Request", http.StatusBadRequest)
+		return
 	}
 
-	defer req.Body.Close()
+	varsStorage := make(map[string]interface{})
+	var items []ResultItem
 
-	// var ops []InputData
-	res, err := parseInputData(body)
-	if err != nil {
+	for _, op := range opers {
+		var baseOp OperationUnit
+		if err := json.Unmarshal(op, &baseOp); err != nil {
+			http.Error(writer,
+				"Invalid Operation",
+				http.StatusBadRequest)
+			return
+		}
+
+		switch baseOp.Type {
+		case "calc":
+			var mathOp MathOperation
+			if err := json.Unmarshal(op, &mathOp); err != nil {
+				http.Error(writer,
+					"Invalid math operation",
+					http.StatusBadRequest)
+				return
+			}
+			calculate(mathOp, varsStorage)
+		case "print":
+			var printOp PrintOperation
+			if err := json.Unmarshal(op, &printOp); err != nil {
+				http.Error(writer,
+					"Invalid print operation",
+					http.StatusBadRequest)
+				return
+			}
+			printValue(printOp, &items, varsStorage)
+
+		}
 
 	}
-	fmt.Print(res)
-	// for _, op := range ops {
-	// 	currop := typeSelect(op)
-	// 	switch restype := currop.(type) {
-	// 	case CalcData:
-	// 		// res := restype.calucate()
-	// 		// fmt.Println(res)
-	// 	case PrintData:
-	// 		fmt.Printf("OutputData: %+v\n", restype)
-	// 	default:
-	// 		fmt.Println("Неизвестный тип операции")
-	// 	}
-	// }
+	writer.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(writer).Encode(items)
 }
 
 func main() {
-	http.HandleFunc("/post", handlePost)
-	fmt.Println("Server is running on http://127.0.0.1:8080")
-	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
-		fmt.Printf("Error in running server: %s\n", err)
-	}
+	http.HandleFunc("/", handlePost)
+	fmt.Println("Server is running on http://127.0.0.1:8000")
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
