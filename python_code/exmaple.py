@@ -30,10 +30,10 @@ body2 = [
 
 
 response = requests.post(url="http://127.0.0.1:8000/", json=body0)
-print(f"Response 1 - {json.dumps(response.json(), indent=1)}")
+print(f"Response 1 - {response.json()}")
 
 response = requests.post(url="http://127.0.0.1:8000/", json=body1)
-print(f"Response 2 - {json.dumps(response.json(), indent=1)}")
+print(f"Response 2 - {response.json()}")
 
 response = requests.post(url="http://127.0.0.1:8000/", json=body2)
-print(f"Response 3 - {json.dumps(response.json(), indent=1)}")
+print(f"Response 3 - {response.json()}")
