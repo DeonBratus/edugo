@@ -76,3 +76,14 @@ func getValue(val interface{}, varsStorage map[string]interface{}) interface{} {
 
 Документация Swagger:
 ![](/readme_pictures/SwaggerExample.png)
+
+# Чек-лист по требованиям
+1) написан на go ✔
+2) любой паттерн проектирования ✔ - команда, фабрика
+3) поднимается через docker compose ✔
+4) unit tests coverage > 20% ✔
+5) реализует grpc и http endpoint, есть swagger ✔ - http + swagger 
+6) примеры запросов и ответов ✔
+7) ссылка на gh, смотрю на master, или архив с кодом ✔
+8) краткая записка—документация по реализации, до двух А4, в свободной форме. pdf, md,
+txt ✔
