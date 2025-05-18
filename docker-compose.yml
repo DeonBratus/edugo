@@ -1,13 +1,8 @@
+version: '3.8'
+
 services:
-  calculator:
+  app:
     build: .
     ports:
       - "8000:8000"
     restart: unless-stopped
-    environment:
-      - PORT=8000
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:8000"]
-      interval: 10s
-      timeout: 3s
-      retries: 3

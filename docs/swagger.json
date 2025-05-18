@@ -1,7 +1,76 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "API для математических и печатных операций.",
+        "title": "Operation API",
+        "contact": {},
+        "version": "1.0"
     },
-    "paths": {}
+    "host": "localhost:8000",
+    "basePath": "/",
+    "paths": {
+        "/": {
+            "post": {
+                "description": "Принимает список математических и печатных операций, выполняет их и возвращает результат.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Выполнить список операций",
+                "parameters": [
+                    {
+                        "description": "Список операций",
+                        "name": "operations",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.OperationRequestItem"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.ResultItem"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "405": {
+                        "description": "Метод не поддерживается",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.OperationRequestItem": {
+            "type": "object"
+        },
+        "main.ResultItem": {
+            "type": "object",
+            "properties": {
+                "value": {},
+                "var": {
+                    "type": "string"
+                }
+            }
+        }
+    }
 }

@@ -1,28 +1,30 @@
-# Билд стадии
-FROM golang:1.21-alpine AS builder
+# Используем официальный образ Go
+FROM golang:1.21-alpine as builder
 
+# Устанавливаем зависимости
+RUN apk add --no-cache git
+
+# Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы модулей и скачиваем зависимости
+# Копируем файлы модулей и загружаем зависимости
 COPY go.mod go.sum ./
 RUN go mod download
 
 # Копируем исходный код
 COPY . .
 
-# Собираем бинарник с отключенным CGO и статической линковкой
-RUN CGO_ENABLED=0 GOOS=linux go build -o /server
+# Собираем приложение
+RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
-# Финальная стадия
+# Финальный образ
 FROM alpine:latest
 
-WORKDIR /app
-
-# Копируем бинарник из билдера
-COPY --from=builder /server /app/server
+# Копируем бинарный файл из builder
+COPY --from=builder /app/main /main
 
 # Открываем порт
 EXPOSE 8000
 
-# Запускаем сервер
-CMD ["/app/server"]
+# Запускаем приложение
+CMD ["/main"]
