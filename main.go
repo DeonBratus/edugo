@@ -12,12 +12,6 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// @title Operation API
-// @version 1.0
-// @description API для математических и печатных операций.
-// @host localhost:8000
-// @BasePath /
-
 type OperationUnit struct {
 	Type string `json:"type"`
 }
@@ -27,7 +21,7 @@ type MathOperation struct {
 	Op    string      `json:"op"`
 	Var   string      `json:"var"`
 	Left  interface{} `json:"left"`
-	Rignt interface{} `json:"rignt"`
+	Rignt interface{} `json:"right"`
 }
 
 type PrintOperation struct {
@@ -35,70 +29,13 @@ type PrintOperation struct {
 	Var string `json:"var"`
 }
 
+type OperationList struct {
+	Operations []json.RawMessage `json:"operations"`
+}
+
 type ResultItem struct {
 	Var   string      `json:"var"`
 	Value interface{} `json:"value"`
-}
-
-// OperationRequestItem — структура для описания Swagger-документации входных операций
-type OperationRequestItem struct {
-	Type  string      `json:"type" example:"calc"` // "calc" или "print"
-	Op    string      `json:"op,omitempty" example:"+"`
-	Var   string      `json:"var" example:"x"`
-	Left  interface{} `json:"left,omitempty" example:"2"`
-	Rignt interface{} `json:"rignt,omitempty" example:"3"`
-}
-
-// @Summary Выполнить список операций
-// @Description Принимает список математических и печатных операций, выполняет их и возвращает результат.
-// @Accept json
-// @Produce json
-// @Param operations body []OperationRequestItem true "Список операций"
-// @Success 200 {array} ResultItem
-// @Failure 400 {string} string "Неверный запрос"
-// @Failure 405 {string} string "Метод не поддерживается"
-// @Router / [post]
-func handlePost(writer http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(writer, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var opers []json.RawMessage
-	if err := json.NewDecoder(req.Body).Decode(&opers); err != nil {
-		http.Error(writer, "Bad Request", http.StatusBadRequest)
-		return
-	}
-
-	varsStorage := make(map[string]interface{})
-	var items []ResultItem
-
-	for _, op := range opers {
-		var baseOp OperationUnit
-		if err := json.Unmarshal(op, &baseOp); err != nil {
-			http.Error(writer, "Invalid Operation", http.StatusBadRequest)
-			return
-		}
-
-		switch baseOp.Type {
-		case "calc":
-			var mathOp MathOperation
-			if err := json.Unmarshal(op, &mathOp); err != nil {
-				http.Error(writer, "Invalid math operation", http.StatusBadRequest)
-				return
-			}
-			calculate(mathOp, varsStorage)
-		case "print":
-			var printOp PrintOperation
-			if err := json.Unmarshal(op, &printOp); err != nil {
-				http.Error(writer, "Invalid print operation", http.StatusBadRequest)
-				return
-			}
-			printValue(printOp, &items, varsStorage)
-		}
-	}
-	writer.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(writer).Encode(items)
 }
 
 func calculate(op MathOperation, varsStorage map[string]interface{}) {
@@ -124,6 +61,8 @@ func getValue(val interface{}, varsStorage map[string]interface{}) interface{} {
 		return 0.0
 	case float64:
 		return v
+	case int32:
+		return v
 	default:
 		return 0.0
 	}
@@ -136,8 +75,59 @@ func printValue(op PrintOperation, items *[]ResultItem, varsStorage map[string]i
 	}
 	*items = append(*items, ResultItem{
 		Var:   op.Var,
-		Value: value,
+		Value: value, // Теперь value передаётся как interface{}, что допустимо
 	})
+}
+
+func handlePost(writer http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(writer, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var opers []json.RawMessage
+	if err := json.NewDecoder(req.Body).Decode(&opers); err != nil {
+		http.Error(writer, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	varsStorage := make(map[string]interface{})
+	var items []ResultItem
+
+	for _, op := range opers {
+		var baseOp OperationUnit
+		if err := json.Unmarshal(op, &baseOp); err != nil {
+			http.Error(writer,
+				"Invalid Operation",
+				http.StatusBadRequest)
+			return
+		}
+
+		switch baseOp.Type {
+		case "calc":
+			var mathOp MathOperation
+			if err := json.Unmarshal(op, &mathOp); err != nil {
+				http.Error(writer,
+					"Invalid math operation",
+					http.StatusBadRequest)
+				return
+			}
+			calculate(mathOp, varsStorage)
+		case "print":
+			var printOp PrintOperation
+			if err := json.Unmarshal(op, &printOp); err != nil {
+				http.Error(writer,
+					"Invalid print operation",
+					http.StatusBadRequest)
+				return
+			}
+			printValue(printOp, &items, varsStorage)
+
+		}
+
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(writer).Encode(items)
 }
 
 func main() {
